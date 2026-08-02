@@ -4,6 +4,8 @@ Ghi hình từ TouchDesigner ra file chất lượng cao **mà không kéo tụt
 
 TouchDesigner chỉ chia sẻ texture qua Syphon (macOS) / Spout (Windows) — gần như không tốn tài nguyên. Toàn bộ việc encode chạy ở process riêng bằng encoder phần cứng.
 
+> 📄 **[HANDOFF.md](HANDOFF.md)** — trạng thái dự án, quyết định thiết kế, việc còn lại. Đọc file này trước khi tiếp tục phát triển.
+
 ## Tải về
 
 Vào tab **Releases** ở trên, tải file cho hệ của bạn:
