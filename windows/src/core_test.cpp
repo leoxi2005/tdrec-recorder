@@ -306,7 +306,8 @@ static void TestSinkEndToEnd() {
     }
 
     const int W = 64, H = 64, FPS = 30;
-    const char* out = "/tmp/tdrec_sink_test.mov";
+    // Duong dan tuong doi: "/tmp" khong ton tai tren Windows.
+    const char* out = "tdrec_sink_test.mov";
 
     FFmpegSink::Options o;
     o.width = W; o.height = H; o.fps = FPS;
@@ -341,8 +342,9 @@ static void TestSinkEndToEnd() {
     // Đối chiếu bằng ffprobe cho chắc — đếm frame thật trong file.
     std::string cmd = "ffprobe -v error -count_frames -select_streams v:0 "
                       "-show_entries stream=nb_read_frames -of default=nw=1:nk=1 ";
+    cmd += "\"";
     cmd += out;
-    cmd += " 2>/dev/null";
+    cmd += "\"";
     if (FILE* fp = TDREC_POPEN(cmd.c_str(), "r")) {
         char buf[64] = {0};
         if (std::fgets(buf, sizeof buf, fp)) {
@@ -369,7 +371,7 @@ static void TestSizeGuard() {
     const int W = 64, H = 64;
     FFmpegSink::Options o;
     o.width = W; o.height = H; o.fps = 30;
-    o.output = "/tmp/tdrec_size_test.mov";
+    o.output = "tdrec_size_test.mov";
     o.codec = "libx264";
     o.extraArgs = "-pix_fmt yuv420p -preset ultrafast -crf 35";
 
