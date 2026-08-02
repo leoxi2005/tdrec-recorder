@@ -12,6 +12,15 @@
 
 #include <cstdio>
 #include <cstring>
+
+// MSVC dat ten cac ham nay co dau gach duoi o dau.
+#ifdef _WIN32
+  #define TDREC_POPEN  _popen
+  #define TDREC_PCLOSE _pclose
+#else
+  #define TDREC_POPEN  popen
+  #define TDREC_PCLOSE pclose
+#endif
 #include <vector>
 #include <string>
 #include <cmath>
@@ -306,7 +315,7 @@ static void TestSinkEndToEnd() {
                       "-show_entries stream=nb_read_frames -of default=nw=1:nk=1 ";
     cmd += out;
     cmd += " 2>/dev/null";
-    if (FILE* fp = popen(cmd.c_str(), "r")) {
+    if (FILE* fp = TDREC_POPEN(cmd.c_str(), "r")) {
         char buf[64] = {0};
         if (std::fgets(buf, sizeof buf, fp)) {
             const int n = std::atoi(buf);
@@ -315,7 +324,7 @@ static void TestSinkEndToEnd() {
         } else {
             Check("chay duoc ffprobe", false);
         }
-        pclose(fp);
+        TDREC_PCLOSE(fp);
     }
     std::remove(out);
 }
