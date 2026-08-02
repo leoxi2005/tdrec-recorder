@@ -58,6 +58,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cai ffmpeg (cho phep thu dau-cuoi)
+        run: choco install ffmpeg -y --no-progress
+
       - name: Cau hinh CMake
         run: cmake -S windows -B build -DCMAKE_BUILD_TYPE=Release -A x64
 

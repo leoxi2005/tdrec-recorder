@@ -36,5 +36,12 @@ let package = Package(
                 ])
             ]
         ),
-    ]
+    ],
+    // Ghim che do ngon ngu Swift 5. Cac API AVFoundation/CoreVideo dung o day
+    // (callback CVPixelBuffer, completion handler cua AVAssetWriter) chua duoc
+    // danh dau Sendable, va muc do chat che cua che do Swift 6 thay doi giua
+    // ban 6.0 va 6.3 nen build khong nhat quan giua may va CI.
+    // Tinh dung dan ve dong thoi o day duoc bao dam bang khoa tu viet
+    // (NSLock, serial queue), khong dua vao kiem tra cua trinh bien dich.
+    swiftLanguageModes: [.v5]
 )

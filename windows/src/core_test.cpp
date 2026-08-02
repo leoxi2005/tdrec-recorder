@@ -29,9 +29,33 @@ using namespace tdrec;
 
 static int g_pass = 0, g_fail = 0;
 
+static int g_skip = 0;
+
 static void Check(const char* name, bool ok, const std::string& detail = "") {
     if (ok) { g_pass++; std::printf("  [ok]   %s\n", name); }
     else    { g_fail++; std::printf("  [FAIL] %s %s\n", name, detail.c_str()); }
+}
+
+static void Skip(const char* name, const char* why) {
+    g_skip++;
+    std::printf("  [skip] %s — %s\n", name, why);
+}
+
+// Vai phep thu can ffmpeg that. Neu may khong co thi BO QUA chu khong bao
+// that bai: thieu ffmpeg la van de moi truong, khong phai loi cua ma nguon.
+static bool HasFFmpeg() {
+    static int cached = -1;
+    if (cached < 0) {
+        FILE* fp = TDREC_POPEN("ffmpeg -version", "r");
+        if (!fp) { cached = 0; }
+        else {
+            char buf[128] = {0};
+            const bool got = std::fgets(buf, sizeof buf, fp) != nullptr;
+            const int rc = TDREC_PCLOSE(fp);
+            cached = (got && rc == 0) ? 1 : 0;
+        }
+    }
+    return cached == 1;
 }
 
 // PRNG cố định để test tái lập được.
@@ -276,6 +300,10 @@ static void TestFFmpegCommand() {
 // phần chèn bù giữ constant frame rate hoạt động qua đường ống thật.
 static void TestSinkEndToEnd() {
     std::printf("\n── FFmpegSink dau-cuoi (ffmpeg that) ──\n");
+    if (!HasFFmpeg()) {
+        Skip("test dau-cuoi", "khong tim thay ffmpeg trong PATH");
+        return;
+    }
 
     const int W = 64, H = 64, FPS = 30;
     const char* out = "/tmp/tdrec_sink_test.mov";
@@ -333,6 +361,10 @@ static void TestSinkEndToEnd() {
 // tran bo dem lastFrame_ khi chen bu.
 static void TestSizeGuard() {
     std::printf("\n── Chan frame sai kich thuoc ──\n");
+    if (!HasFFmpeg()) {
+        Skip("chan frame sai kich thuoc", "khong tim thay ffmpeg trong PATH");
+        return;
+    }
 
     const int W = 64, H = 64;
     FFmpegSink::Options o;
@@ -373,7 +405,10 @@ int main() {
     TestSizeGuard();
 
     std::printf("\n----------------------------------------\n");
-    std::printf(" %d dat, %d hong\n", g_pass, g_fail);
+    if (g_skip)
+        std::printf(" %d dat, %d hong, %d bo qua\n", g_pass, g_fail, g_skip);
+    else
+        std::printf(" %d dat, %d hong\n", g_pass, g_fail);
     std::printf("----------------------------------------\n");
     return g_fail == 0 ? 0 : 1;
 }
