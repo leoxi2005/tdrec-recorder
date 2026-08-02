@@ -1,0 +1,112 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────
+  macos:
+    name: macOS (Apple Silicon)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Phien ban toolchain
+        run: swift --version
+
+      - name: Build
+        working-directory: macos
+        run: swift build -c release
+
+      - name: Kiem tra bo giai ma watermark
+        working-directory: macos
+        # Chi chay test thuan CPU tren CI. Cac test khac can Metal + Syphon
+        # server that nen khong on dinh trong may ao.
+        run: ./.build/release/TDRec --decodetest
+
+      - name: Dong goi TDRec.app
+        working-directory: macos
+        run: ./build.sh
+
+      - name: Kiem tra .app chay duoc
+        working-directory: macos
+        run: |
+          test -x dist/TDRec.app/Contents/MacOS/TDRec
+          test -f dist/TDRec.app/Contents/Resources/TDRec.icns
+          ./dist/TDRec.app/Contents/MacOS/TDRec --decodetest
+
+      - name: Nen lai
+        working-directory: macos/dist
+        # ditto giu nguyen quyen thuc thi va chu ky, zip thuong thi khong.
+        run: ditto -c -k --sequesterRsrc --keepParent TDRec.app TDRec-macOS.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TDRec-macOS
+          path: macos/dist/TDRec-macOS.zip
+
+  # ─────────────────────────────────────────────────────────────────
+  windows:
+    name: Windows (MSVC x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cau hinh CMake
+        run: cmake -S windows -B build -DCMAKE_BUILD_TYPE=Release -A x64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Chay 43 phep thu phan loi
+        run: .\build\Release\tdrec_core_test.exe
+
+      - name: Kiem tra tdrec.exe ton tai va chay duoc
+        run: |
+          .\build\Release\tdrec.exe --help
+          .\build\Release\tdrec.exe --senders
+        # --senders tra ve 1 khi khong co Spout sender nao (dung tren CI),
+        # nen khong duoc de PowerShell coi do la loi.
+        continue-on-error: true
+
+      - name: Gom file
+        run: |
+          mkdir dist
+          copy build\Release\tdrec.exe dist\
+          copy build\Release\tdrec_core_test.exe dist\
+          copy windows\README.md dist\
+          copy macos\td\tdrec_watermark.frag dist\
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TDRec-Windows
+          path: dist/
+
+  # ─────────────────────────────────────────────────────────────────
+  release:
+    name: Tao ban phat hanh
+    needs: [macos, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+
+      - name: Dong goi lai ban Windows
+        run: |
+          cd artifacts/TDRec-Windows
+          zip -r ../../TDRec-Windows.zip .
+          cd ../..
+          cp artifacts/TDRec-macOS/TDRec-macOS.zip .
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            TDRec-macOS.zip
+            TDRec-Windows.zip
+          generate_release_notes: true
