@@ -66,7 +66,17 @@ bool FFmpegSink::Open(const Options& opt, std::string* error) {
     nextIndex_ = 0;
     stats_ = Stats{};
 
-    const std::string cmd = CommandLine();
+    std::string cmd = CommandLine();
+
+#ifdef _WIN32
+    // cmd.exe cat bo dau nhay DAU va CUOI cua ca chuoi lenh truoc khi phan
+    // tich. Lenh cua ta bat dau bang "duong-dan-ffmpeg" va ket thuc bang
+    // "duong-dan-file" — deu co dau nhay — nen se bi cat hong thanh:
+    //     ffmpeg" ... "out.mov
+    // Boc them mot lop nhay ben ngoai de cmd.exe cat dung lop thua do.
+    cmd = "\"" + cmd + "\"";
+#endif
+
     pipe_ = TDREC_POPEN(cmd.c_str(), TDREC_PIPE_MODE);
     if (!pipe_) {
         if (error) *error = "Không chạy được ffmpeg. Lệnh: " + cmd;
