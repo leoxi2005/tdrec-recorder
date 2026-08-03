@@ -4,13 +4,41 @@ Ghi hình từ TouchDesigner ra video mà **không kéo tụt FPS của TD** và
 
 ---
 
+## ▶ Bắt đầu ở đây — bấm đúp `TDRec.bat`
+
+> **Đừng bấm đúp `tdrec.exe`.** Nó là công cụ dòng lệnh: Windows sẽ mở cửa sổ đen, in bảng hướng dẫn, rồi **đóng cửa sổ ngay lập tức**. Nhìn y hệt như "app không mở được", nhưng app không hỏng — nó chạy xong rồi.
+>
+> `TDRec.bat` chỉ là lớp vỏ giữ cửa sổ lại và hỏi bạn muốn làm gì.
+
+**Ba bước, làm đúng thứ tự:**
+
+1. **Chuột phải file `TDRec-Windows.zip` → Properties → tick `Unblock` → OK.**
+   File tải từ mạng bị Windows đánh dấu, không bỏ dấu này thì SmartScreen chặn không cho chạy.
+2. **Chuột phải → `Extract All...`** ra một thư mục thật.
+   Bấm đúp *bên trong* file .zip sẽ không chạy được — Windows chỉ giải nén tạm mỗi file bạn bấm, `TDRec.bat` sẽ không thấy `tdrec.exe` đâu cả.
+3. **Bấm đúp `TDRec.bat`** trong thư mục vừa giải nén → chọn **[2] Kiểm tra đường Spout** trước tiên.
+
+Nếu hiện bảng xanh *"Windows protected your PC"*: bấm **More info → Run anyway**. App chưa ký số nên Windows cảnh báo mọi lần đầu.
+
+**Không cần cài Visual C++ Redistributable** — từ v1.0.1 phần runtime đã nhúng thẳng vào `tdrec.exe`.
+
+**Cần ffmpeg trong PATH** thì mới *ghi* được (mục [3]). Mục [1] và [2] không cần:
+```
+winget install Gyan.FFmpeg
+```
+Cài xong phải **mở lại** cửa sổ thì PATH mới cập nhật.
+
+Phần còn lại của tài liệu này dành cho người muốn build từ mã nguồn hoặc chạy trực tiếp bằng dòng lệnh.
+
+---
+
 ## Trạng thái kiểm chứng
 
 Code viết trên máy macOS. Không chạy được với TouchDesigner thật ở đây, nhưng đã kiểm chứng được khá nhiều:
 
 | Đã kiểm chứng | Cách làm |
 |---|---|
-| ✅ 41/41 test phần lõi | chạy thật trên macOS, gồm test đầu-cuối qua ffmpeg + ffprobe đếm lại frame |
+| ✅ 43/43 test phần lõi | chạy thật trên macOS, gồm test đầu-cuối qua ffmpeg + ffprobe đếm lại frame |
 | ✅ Toàn bộ vòng lặp ghi | `--record --mock` ở 10350×1080@60 → 482 frame, lệch **+25 ms** |
 | ✅ Nguồn chậm hơn nhịp ghi | mock 30fps → ghi 60fps, 8 giây thực → 7.950 s video (lệch −50 ms) |
 | ✅ 13/13 lệnh gọi SpoutDX | đối chiếu từng chữ ký với `SpoutDX.h` thật, và đọc cài đặt `ReceiveImage`/`IsFrameNew` để xác nhận đúng ngữ nghĩa |
@@ -70,7 +98,7 @@ CMake sẽ tự tải Spout2 SDK về. Nếu bước đó hỏng vì repo Spout 
 build\Release\tdrec_core_test.exe
 ```
 
-Phải ra `41 dat, 0 hong`. Nếu hỏng ở đây thì là lỗi trình biên dịch hoặc build, chưa liên quan gì tới Spout.
+Phải ra `43 dat, 0 hong`. Nếu hỏng ở đây thì là lỗi trình biên dịch hoặc build, chưa liên quan gì tới Spout.
 
 ### 2. Xem TouchDesigner có phát Spout không
 
@@ -160,7 +188,7 @@ src/core/               ── đa nền tảng, đã kiểm chứng
 src/win/                ── chỉ Windows, CHƯA kiểm chứng
   spout_source.{h,cpp}    nhận frame qua SpoutDX
 src/main.cpp            ── dòng lệnh
-src/core_test.cpp       ── 41 phép thử cho phần lõi
+src/core_test.cpp       ── 43 phép thử cho phần lõi
 ```
 
 Watermark phải khớp **từng bit** với bản macOS (`~/tdrec/Sources/TDRec/Watermark.swift`) và với GLSL TOP (`~/tdrec/td/tdrec_watermark.frag`) — cùng một project TouchDesigner phải cho kết quả giống nhau ở cả hai hệ.

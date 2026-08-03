@@ -2,7 +2,7 @@
 
 > Tài liệu bàn giao. Mở phiên làm việc mới thì đọc file này trước, đủ để tiếp tục mà không cần kể lại lịch sử.
 >
-> Cập nhật: 2026-08-02 · phiên bản v1.0.0
+> Cập nhật: 2026-08-03 · phiên bản v1.0.1
 
 ---
 
@@ -27,7 +27,7 @@ TouchDesigner ──Syphon/Spout──▶ TDRec (process riêng)
 | | |
 |---|---|
 | Repo | https://github.com/leoxi2005/tdrec-recorder — **công khai** |
-| Bản phát hành | v1.0.0 — `TDRec-macOS.zip` (927 KB), `TDRec-Windows.zip` (90 KB) |
+| Bản phát hành | v1.0.1 — `TDRec-macOS.zip`, `TDRec-Windows.zip` (kèm `TDRec.bat` bấm đúp được) |
 | CI | GitHub Actions build cả 2 nền tảng, chạy test, tự tạo release khi push tag `v*` |
 | macOS | ✅ **đã chạy thật với TouchDesigner** |
 | Windows | ⚠️ build + test đạt trên CI, **chưa ai chạy với TouchDesigner thật** |
@@ -77,8 +77,11 @@ Khi đĩa/encoder tụt, app **bỏ frame chứ tuyệt đối không chờ**. C
 | `SizeChanged()` lồng trong `if (Receive())` | Code chết — đổi res giữa chừng làm hỏng video mà không báo | lưới an toàn trong `FFmpegSink::Append` |
 | **`cmd.exe` cắt dấu nháy đầu+cuối** | ffmpeg không ghi được frame nào trên Windows → app vô dụng | test đầu-cuối trên CI |
 | `swiftLanguageModes` đặt trước `targets` | Package.swift không parse được | build local |
+| **Bấm đúp `tdrec.exe`** | Cửa sổ đen nháy rồi tắt — người dùng tưởng "app không mở được", thực ra nó in usage xong thoát (`main.cpp:318`) | `TDRec.bat` đi kèm trong zip |
+| MSVC link động CRT | Máy chưa cài VC++ Redist báo thiếu `VCRUNTIME140.dll` | `CMAKE_MSVC_RUNTIME_LIBRARY`, CI kiểm bằng `dumpbin /dependents` |
+| Git chuẩn hoá `.bat` về LF | cmd.exe parse sai: `goto :label` trượt, khối if/else vỡ | `.gitattributes` + bước kiểm CRLF trên CI |
 
-Hai lỗi cuối chỉ lộ ra khi CI build bằng MSVC thật — cross-compile mingw trên Mac **không** phát hiện được.
+Ba bẫy Windows ở giữa bảng (`cmd.exe` cắt nháy, `swiftLanguageModes`, link động CRT) chỉ lộ ra khi CI build bằng MSVC thật — cross-compile mingw trên Mac **không** phát hiện được.
 
 ---
 
@@ -103,7 +106,8 @@ Hai lỗi cuối chỉ lộ ra khi CI build bằng MSVC thật — cross-compile
 
 ### Ưu tiên 1 — Xác minh Windows *(người dùng chủ yếu dùng Windows)*
 
-Chỉ cần một lệnh, không đụng ffmpeg nên loại trừ được một nguồn lỗi:
+Giải nén zip (nhớ **Unblock** file zip trước), bấm đúp **`TDRec.bat`**, chọn **[2]**.
+Tương đương lệnh sau — không đụng ffmpeg nên loại trừ được một nguồn lỗi:
 
 ```bat
 tdrec.exe --probe --sender RECORD
@@ -125,6 +129,7 @@ Nếu `--probe` cho FPS thấp hơn TD thì chính là khâu này. Hướng xử
 ### Ưu tiên 3 — Giao diện cho Windows
 
 Cố ý chưa làm, để bề mặt nhỏ nhất cho lần debug đầu. Làm sau khi nhân chạy ổn.
+v1.0.1 đã có `TDRec.bat` — menu bấm đúp được, đủ dùng tạm, chưa phải GUI thật.
 
 ---
 
@@ -151,7 +156,7 @@ build\Release\tdrec.exe --probe --sender RECORD
               --seconds 8 --codec libx264 --out test.mov
 
 # Phát hành bản mới
-git tag v1.0.1 && git push origin v1.0.1     # CI tự build + tạo release
+git tag v1.0.2 && git push origin v1.0.2     # CI tự build + tạo release
 ```
 
 ---

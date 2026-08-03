@@ -1,0 +1,13 @@
+# File .bat BAT BUOC phai la CRLF. cmd.exe parse sai file chi co LF:
+# `goto :label` co the truot, khoi if/else nhieu dong bi vo. Git mac dinh
+# chuan hoa ve LF khi commit -> khong co dong duoi day thi TDRec.bat tai tu
+# GitHub ve se hong tren may that du chay tot khi test cuc bo.
+*.bat text eol=crlf
+
+# Nguon C++/Swift/GLSL giu LF o moi noi.
+*.cpp  text eol=lf
+*.h    text eol=lf
+*.swift text eol=lf
+*.frag text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf

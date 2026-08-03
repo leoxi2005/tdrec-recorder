@@ -8,6 +8,20 @@ if(MSVC)
     add_compile_options(/W3 /utf-8)
     # /utf-8 là bắt buộc: comment trong mã có tiếng Việt, thiếu cờ này MSVC
     # sẽ đọc sai và có thể báo lỗi cú pháp khó hiểu.
+
+    # Nhúng thẳng CRT vào exe thay vì link động.
+    #
+    # Mặc định MSVC link động, exe sẽ cần VCRUNTIME140.dll + MSVCP140.dll từ
+    # gói "Visual C++ Redistributable". Máy chưa cài gói đó thì Windows hiện
+    # hộp thoại thiếu DLL — với người dùng nhìn giống hệt "app không mở được",
+    # mà đây là công cụ đem sang máy show nên không thể đòi cài thêm gì.
+    #
+    # Phải đặt TRƯỚC mọi add_library/add_executable thì mới có tác dụng.
+    # Biến này chỉ được đọc khi policy CMP0091 ở chế độ NEW — dòng
+    # `cmake_minimum_required(VERSION 3.20)` phía trên đã bật sẵn, đừng hạ
+    # số đó xuống dưới 3.15 kẻo cờ này lặng lẽ mất tác dụng.
+    # Giá phải trả: exe to thêm khoảng 200 KB. Đổi lại là chép đi đâu cũng chạy.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 else()
     add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 endif()

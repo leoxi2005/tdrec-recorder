@@ -78,11 +78,43 @@ jobs:
         # nen khong duoc de PowerShell coi do la loi.
         continue-on-error: true
 
+      - name: Kiem tra exe khong phu thuoc VC++ Redistributable
+        shell: pwsh
+        # Neu link dong CRT thi exe se doi VCRUNTIME140.dll / MSVCP140.dll,
+        # may chua cai gap hop thoai thieu DLL -- nguoi dung thay giong het
+        # "app khong mo duoc". Chan tu day thay vi de lo ra o may show.
+        run: |
+          $dumpbin = (Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio" -Recurse -Filter dumpbin.exe -ErrorAction SilentlyContinue |
+                      Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1).FullName
+          if (-not $dumpbin) { Write-Host "Khong thay dumpbin, bo qua"; exit 0 }
+          $deps = & $dumpbin /dependents .\build\Release\tdrec.exe
+          $deps | Write-Host
+          if ($deps -match 'VCRUNTIME|MSVCP') {
+            Write-Error "tdrec.exe van link dong CRT -- CMAKE_MSVC_RUNTIME_LIBRARY khong an"
+            exit 1
+          }
+          Write-Host "OK: tdrec.exe khong can VC++ Redistributable"
+
+      - name: Kiem tra TDRec.bat con dung CRLF
+        shell: pwsh
+        # cmd.exe parse sai file .bat chi co LF: `goto :label` truot, khoi
+        # if/else nhieu dong bi vo. Git co the chuan hoa mat CRLF neu
+        # .gitattributes bi sua -- chan o day.
+        run: |
+          $raw = [IO.File]::ReadAllBytes("windows\TDRec.bat")
+          $txt = [Text.Encoding]::ASCII.GetString($raw)
+          if ($txt -notmatch "`r`n") {
+            Write-Error "TDRec.bat mat CRLF -- kiem tra .gitattributes"
+            exit 1
+          }
+          Write-Host "OK: TDRec.bat giu CRLF"
+
       - name: Gom file
         run: |
           mkdir dist
           copy build\Release\tdrec.exe dist\
           copy build\Release\tdrec_core_test.exe dist\
+          copy windows\TDRec.bat dist\
           copy windows\README.md dist\
           copy macos\td\tdrec_watermark.frag dist\
 
