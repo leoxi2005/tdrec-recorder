@@ -14,14 +14,18 @@
 
 #ifdef _WIN32
   #include "win/spout_source.h"
+  #include <windows.h>
 #endif
 
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cctype>
 #include <memory>
 #include <string>
+#include <vector>
+#include <iostream>
 #include <thread>
 #include <atomic>
 #include <csignal>
@@ -308,12 +312,188 @@ int CmdRecordSpout(int argc, char** argv) {
     return RunRecord(src, cfg);
 }
 
+// ── Menu khi người dùng BẤM ĐÚP file exe từ Explorer ───────────────────
+//
+// tdrec.exe là console app. Bấm đúp nó thì Windows tạo một console mới,
+// chạy xong lệnh là ĐÓNG CỬA SỔ NGAY — người dùng chỉ thấy ô đen nháy một
+// cái rồi tắt, nhìn y hệt "app hỏng, bấm không lên". Đây là hiểu lầm số
+// một khi đưa công cụ dòng lệnh cho người không quen terminal.
+//
+// Cách phân biệt bấm đúp với gõ lệnh từ cmd: đếm số process đang gắn vào
+// console. Console do Explorer dựng lên chỉ có duy nhất process này; console
+// của cmd.exe / PowerShell thì có ít nhất cái shell đó nữa. Nhờ vậy chạy từ
+// terminal vẫn giữ nguyên hành vi cũ (in usage rồi thoát) để còn viết script.
+bool LaunchedFromExplorer() {
+    DWORD pids[4] = {};
+    const DWORD n = GetConsoleProcessList(pids, 4);
+    return n <= 1;
+}
+
+std::string ReadLine(const char* label, const std::string& fallback) {
+    std::printf("%s", label);
+    std::fflush(stdout);
+    std::string s;
+    if (!std::getline(std::cin, s)) return fallback;
+    const size_t a = s.find_first_not_of(" \t");
+    if (a == std::string::npos) return fallback;
+    const size_t b = s.find_last_not_of(" \t\r");
+    s = s.substr(a, b - a + 1);
+    return s.empty() ? fallback : s;
+}
+
+void WaitEnter() {
+    std::printf("\n  ---------------------------------------------------\n");
+    std::printf("  Nhan Enter de ve menu...");
+    std::fflush(stdout);
+    std::string bo;
+    std::getline(std::cin, bo);
+}
+
+// Gọi lại đúng các hàm lệnh ở trên bằng argv dựng tại chỗ, để menu và dòng
+// lệnh không bao giờ đi lệch nhau.
+int Dispatch(const std::vector<std::string>& args) {
+    std::vector<char*> argv;
+    argv.push_back(const_cast<char*>("tdrec"));
+    for (const auto& a : args) argv.push_back(const_cast<char*>(a.c_str()));
+    const int argc = static_cast<int>(argv.size());
+
+    if (HasFlag(argc, argv.data(), "--senders")) return CmdSenders();
+    if (HasFlag(argc, argv.data(), "--probe"))   return CmdProbe(argc, argv.data());
+    if (HasFlag(argc, argv.data(), "--record"))  return CmdRecordSpout(argc, argv.data());
+    return 1;
+}
+
+void MenuProbe() {
+    std::printf("\n  -- Kiem tra duong Spout ---------------------------\n\n");
+    std::printf("  Nhan frame trong 5 giay roi bao cao. KHONG dung ffmpeg,\n");
+    std::printf("  khong ghi file -- chi de xac nhan TD co dang phat khong.\n\n");
+    CmdSenders();
+    std::printf("\n");
+
+    const std::string sender = ReadLine("  Ten sender (bo trong = sender dang active): ", "");
+    std::vector<std::string> args{"--probe"};
+    if (!sender.empty()) { args.push_back("--sender"); args.push_back(sender); }
+
+    const std::string mau = ReadLine("  Mau bi dao do/xanh khong? (y/N): ", "n");
+    if (mau == "y" || mau == "Y") args.push_back("--swap-rb");
+    const std::string lat = ReadLine("  Anh bi lon nguoc khong? (y/N): ", "n");
+    if (lat == "y" || lat == "Y") args.push_back("--flip");
+
+    std::printf("\n");
+    Dispatch(args);
+}
+
+void MenuRecord() {
+    std::printf("\n  -- Bat dau ghi ------------------------------------\n\n");
+
+    if (std::system("where ffmpeg >nul 2>nul") != 0) {
+        std::printf("  !! KHONG THAY ffmpeg trong PATH.\n\n");
+        std::printf("  TDRec goi ffmpeg de encode, goi cai dat nay khong kem san no.\n");
+        std::printf("  Cai bang mot trong hai cach:\n");
+        std::printf("      winget install Gyan.FFmpeg\n");
+        std::printf("      choco install ffmpeg\n");
+        std::printf("  Roi MO LAI tdrec.exe (PATH chi cap nhat o phien moi).\n");
+        return;
+    }
+
+    CmdSenders();
+    std::printf("\n");
+
+    const std::string sender = ReadLine("  Ten sender (bo trong = sender dang active): ", "");
+    const std::string fps    = ReadLine("  Nhip ghi fps [60]: ", "60");
+    const std::string out    = ReadLine("  Luu ra file [tdrec_out.mov]: ", "tdrec_out.mov");
+
+    std::printf("\n  Codec:\n");
+    std::printf("    [1] hevc_nvenc  -- NVIDIA, nhe may nhat        (mac dinh)\n");
+    std::printf("    [2] h264_nvenc  -- NVIDIA, tuong thich rong hon\n");
+    std::printf("    [3] libx264     -- khong can NVIDIA, an CPU\n");
+    const std::string c = ReadLine("  Chon [1]: ", "1");
+    const std::string codec = (c == "2") ? "h264_nvenc" : (c == "3") ? "libx264" : "hevc_nvenc";
+
+    std::vector<std::string> args{"--record", "--fps", fps, "--codec", codec, "--out", out};
+    if (!sender.empty()) { args.push_back("--sender"); args.push_back(sender); }
+
+    std::printf("\n  Nhan Ctrl+C MOT LAN de dung va dong file tu te.\n");
+    std::printf("  (Dong thang cua so se lam hong file.)\n\n");
+    ReadLine("  Nhan Enter de bat dau ghi...", "");
+    std::printf("\n");
+    Dispatch(args);
+}
+
+// Bấm đúp exe khi nó còn NẰM TRONG file .zip: Explorer lặng lẽ bung riêng
+// mình nó ra một thư mục tạm rồi chạy ở đó. App vẫn khởi động nên trông như
+// bình thường, nhưng file ghi ra lại rơi vào thư mục tạm và bị Windows dọn
+// mất. Bắt sớm, vì triệu chứng ("ghi xong không thấy file đâu") rất khó đoán.
+void CanhBaoChayTuZip() {
+    char path[MAX_PATH] = {};
+    if (!GetModuleFileNameA(nullptr, path, MAX_PATH)) return;
+    std::string p(path);
+    for (auto& ch : p) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    if (p.find("\\temp\\") == std::string::npos || p.find(".zip") == std::string::npos) return;
+
+    std::printf("\n");
+    std::printf("  !! DANG CHAY TU BEN TRONG FILE .ZIP\n\n");
+    std::printf("  Windows chi bung tam file nay ra thu muc rac roi se xoa di.\n");
+    std::printf("  Video ghi ra se roi vao do va mat.\n\n");
+    std::printf("  Hay: chuot phai file .zip -> Extract All... ra mot thu muc that,\n");
+    std::printf("  roi bam dup tdrec.exe trong thu muc vua giai nen.\n");
+    WaitEnter();
+}
+
+int RunMenu() {
+    SetConsoleTitleA("TDRec");
+    CanhBaoChayTuZip();
+    for (;;) {
+        // Ctrl+C lúc đang ghi cũng bật cờ này; không dọn thì menu vừa hiện
+        // ra đã tự thoát.
+        g_stop = false;
+
+        std::system("cls");
+        std::printf("\n");
+        std::printf("   =====================================================\n");
+        std::printf("     T D R e c   --  ghi Spout ra video, khong rot frame\n");
+        std::printf("   =====================================================\n\n");
+        std::printf("     [1]  Liet ke Spout sender dang phat\n");
+        std::printf("     [2]  Kiem tra duong Spout  (probe)   <-- LAM CAI NAY TRUOC\n");
+        std::printf("     [3]  Bat dau ghi\n");
+        std::printf("     [4]  Xem bang huong dan day du\n\n");
+        std::printf("     [0]  Thoat\n\n");
+
+        const std::string chon = ReadLine("  Chon roi bam Enter: ", "");
+        if (chon == "0") return 0;
+
+        if (chon == "1") {
+            std::printf("\n  -- Spout sender dang phat -------------------------\n\n");
+            CmdSenders();
+            std::printf("\n  Khong thay ten nao? Trong TouchDesigner kiem tra:\n");
+            std::printf("    - Syphon Spout Out TOP da bat Active chua\n");
+            std::printf("    - TOP do co dang COOK khong (khong cook = lang le ngung phat)\n");
+        } else if (chon == "2") {
+            MenuProbe();
+        } else if (chon == "3") {
+            MenuRecord();
+        } else if (chon == "4") {
+            std::printf("\n");
+            Usage();
+        } else {
+            continue;   // gõ linh tinh thì vẽ lại menu, không cần báo lỗi
+        }
+        WaitEnter();
+    }
+}
+
 #endif  // _WIN32
 
 }  // namespace
 
 int main(int argc, char** argv) {
     std::signal(SIGINT, OnSignal);
+
+#ifdef _WIN32
+    // Bấm đúp từ Explorer: không có tham số nào và console là của riêng mình.
+    // Vào menu thay vì in usage rồi đóng cửa sổ ngay trước mũi người dùng.
+    if (argc < 2 && LaunchedFromExplorer()) return RunMenu();
+#endif
 
     if (argc < 2 || HasFlag(argc, argv, "--help") || HasFlag(argc, argv, "-h")) {
         Usage();

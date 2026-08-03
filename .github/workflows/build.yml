@@ -95,26 +95,27 @@ jobs:
           }
           Write-Host "OK: tdrec.exe khong can VC++ Redistributable"
 
-      - name: Kiem tra TDRec.bat con dung CRLF
+      - name: Kiem tra exe vao duoc menu khi bam dup
         shell: pwsh
-        # cmd.exe parse sai file .bat chi co LF: `goto :label` truot, khoi
-        # if/else nhieu dong bi vo. Git co the chuan hoa mat CRLF neu
-        # .gitattributes bi sua -- chan o day.
+        # Bam dup tu Explorer -> console chi co mot process gan vao ->
+        # LaunchedFromExplorer() tra true -> vao menu thay vi in usage roi
+        # dong cua so ngay. Mo exe bang Start-Process (khong ke thua console
+        # cua runner) de gia lap dung tinh huong do.
         run: |
-          $raw = [IO.File]::ReadAllBytes("windows\TDRec.bat")
-          $txt = [Text.Encoding]::ASCII.GetString($raw)
-          if ($txt -notmatch "`r`n") {
-            Write-Error "TDRec.bat mat CRLF -- kiem tra .gitattributes"
+          $p = Start-Process -FilePath ".\build\Release\tdrec.exe" -PassThru
+          Start-Sleep -Seconds 3
+          if ($p.HasExited) {
+            Write-Error "Bam dup xong exe tu thoat ngay -- menu khong bat"
             exit 1
           }
-          Write-Host "OK: TDRec.bat giu CRLF"
+          Stop-Process -Id $p.Id -Force
+          Write-Host "OK: bam dup thi exe o lai trong menu"
 
       - name: Gom file
         run: |
           mkdir dist
           copy build\Release\tdrec.exe dist\
           copy build\Release\tdrec_core_test.exe dist\
-          copy windows\TDRec.bat dist\
           copy windows\README.md dist\
           copy macos\td\tdrec_watermark.frag dist\
 

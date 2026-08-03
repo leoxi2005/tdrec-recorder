@@ -4,29 +4,27 @@ Ghi hình từ TouchDesigner ra video mà **không kéo tụt FPS của TD** và
 
 ---
 
-## ▶ Bắt đầu ở đây — bấm đúp `TDRec.bat`
-
-> **Đừng bấm đúp `tdrec.exe`.** Nó là công cụ dòng lệnh: Windows sẽ mở cửa sổ đen, in bảng hướng dẫn, rồi **đóng cửa sổ ngay lập tức**. Nhìn y hệt như "app không mở được", nhưng app không hỏng — nó chạy xong rồi.
->
-> `TDRec.bat` chỉ là lớp vỏ giữ cửa sổ lại và hỏi bạn muốn làm gì.
+## ▶ Bắt đầu ở đây — bấm đúp `tdrec.exe`
 
 **Ba bước, làm đúng thứ tự:**
 
 1. **Chuột phải file `TDRec-Windows.zip` → Properties → tick `Unblock` → OK.**
    File tải từ mạng bị Windows đánh dấu, không bỏ dấu này thì SmartScreen chặn không cho chạy.
 2. **Chuột phải → `Extract All...`** ra một thư mục thật.
-   Bấm đúp *bên trong* file .zip sẽ không chạy được — Windows chỉ giải nén tạm mỗi file bạn bấm, `TDRec.bat` sẽ không thấy `tdrec.exe` đâu cả.
-3. **Bấm đúp `TDRec.bat`** trong thư mục vừa giải nén → chọn **[2] Kiểm tra đường Spout** trước tiên.
+   Bấm đúp *bên trong* file .zip thì Windows chỉ bung tạm ra thư mục rác rồi xoá — video ghi ra sẽ mất. App có bắt trường hợp này và báo, nhưng cứ giải nén cho đúng là hơn.
+3. **Bấm đúp `tdrec.exe`** trong thư mục vừa giải nén → hiện menu → chọn **[2] Kiểm tra đường Spout** trước tiên.
 
 Nếu hiện bảng xanh *"Windows protected your PC"*: bấm **More info → Run anyway**. App chưa ký số nên Windows cảnh báo mọi lần đầu.
 
-**Không cần cài Visual C++ Redistributable** — từ v1.0.1 phần runtime đã nhúng thẳng vào `tdrec.exe`.
+**Không cần cài Visual C++ Redistributable** — runtime đã nhúng thẳng vào exe.
 
 **Cần ffmpeg trong PATH** thì mới *ghi* được (mục [3]). Mục [1] và [2] không cần:
 ```
 winget install Gyan.FFmpeg
 ```
-Cài xong phải **mở lại** cửa sổ thì PATH mới cập nhật.
+Cài xong phải **mở lại** `tdrec.exe` thì PATH mới cập nhật.
+
+> **Vì sao phải có menu:** `tdrec.exe` vốn là công cụ dòng lệnh. Bấm đúp một công cụ dòng lệnh thì Windows mở cửa sổ đen, chạy xong là **đóng ngay** — nhìn y hệt "app không mở được". Nên từ v1.0.2 exe tự nhận biết mình được bấm đúp (đếm process gắn vào console) và hiện menu, giữ cửa sổ lại. Gọi từ cmd/PowerShell thì hành vi vẫn y như cũ, script không bị ảnh hưởng.
 
 Phần còn lại của tài liệu này dành cho người muốn build từ mã nguồn hoặc chạy trực tiếp bằng dòng lệnh.
 
