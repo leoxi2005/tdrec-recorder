@@ -2,7 +2,7 @@
 
 > Tài liệu bàn giao. Mở phiên làm việc mới thì đọc file này trước, đủ để tiếp tục mà không cần kể lại lịch sử.
 >
-> Cập nhật: 2026-08-03 · phiên bản v1.0.2
+> Cập nhật: 2026-08-03 · phiên bản v1.0.3
 
 ---
 
@@ -27,7 +27,7 @@ TouchDesigner ──Syphon/Spout──▶ TDRec (process riêng)
 | | |
 |---|---|
 | Repo | https://github.com/leoxi2005/tdrec-recorder — **công khai** |
-| Bản phát hành | v1.0.2 — `TDRec-macOS.zip`, `TDRec-Windows.zip` (bấm đúp `tdrec.exe` là ra menu) |
+| Bản phát hành | v1.0.3 — `TDRec-macOS.zip`, `TDRec-Windows.zip` (bấm đúp `tdrec.exe` là ra menu) |
 | CI | GitHub Actions build cả 2 nền tảng, chạy test, tự tạo release khi push tag `v*` |
 | macOS | ✅ **đã chạy thật với TouchDesigner** |
 | Windows | ⚠️ build + test đạt trên CI, **chưa ai chạy với TouchDesigner thật** |
@@ -78,7 +78,10 @@ Khi đĩa/encoder tụt, app **bỏ frame chứ tuyệt đối không chờ**. C
 | **`cmd.exe` cắt dấu nháy đầu+cuối** | ffmpeg không ghi được frame nào trên Windows → app vô dụng | test đầu-cuối trên CI |
 | `swiftLanguageModes` đặt trước `targets` | Package.swift không parse được | build local |
 | **Bấm đúp một console app** | Cửa sổ đen nháy rồi tắt — người dùng tưởng "app không mở được", thực ra nó in usage xong thoát | `LaunchedFromExplorer()` bật menu; CI kiểm bằng `Start-Process` |
-| MSVC link động CRT | Máy chưa cài VC++ Redist báo thiếu `VCRUNTIME140.dll` | `CMAKE_MSVC_RUNTIME_LIBRARY`, CI kiểm bằng `dumpbin /dependents` |
+| **Nhúng CRT vào exe** | Exe phồng 92→349 KB, bảng import trống → giống packer → **Defender chặn ngay lúc tải**, người dùng không lấy nổi file zip | Bắt buộc link động; CI chặn cả bằng `dumpbin` lẫn ngưỡng dung lượng 220 KB |
+| Thiếu VC++ Redist trên máy đích | Báo thiếu `VCRUNTIME140.dll` | Chép DLL nằm cạnh exe (`InstallRequiredSystemLibraries`), không nhúng |
+| `std::system("cls")` / `system("where")` | Đẻ ra cmd.exe con → heuristic chấm điểm xấu, cộng dồn vào lý do bị nghi | Dùng thẳng Win32: `FillConsoleOutput*`, `SearchPathA` |
+| `GIT_TAG master` cho Spout2 | Mỗi lần CI chạy ra một bản khác → mã băm không ổn định, người dùng không đối chiếu được | Ghim `2.007.017` |
 
 Ba bẫy Windows ở giữa bảng (`cmd.exe` cắt nháy, `swiftLanguageModes`, link động CRT) chỉ lộ ra khi CI build bằng MSVC thật — cross-compile mingw trên Mac **không** phát hiện được.
 

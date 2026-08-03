@@ -9,19 +9,18 @@ if(MSVC)
     # /utf-8 là bắt buộc: comment trong mã có tiếng Việt, thiếu cờ này MSVC
     # sẽ đọc sai và có thể báo lỗi cú pháp khó hiểu.
 
-    # Nhúng thẳng CRT vào exe thay vì link động.
+    # ĐỪNG nhúng CRT vào exe bằng CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded".
     #
-    # Mặc định MSVC link động, exe sẽ cần VCRUNTIME140.dll + MSVCP140.dll từ
-    # gói "Visual C++ Redistributable". Máy chưa cài gói đó thì Windows hiện
-    # hộp thoại thiếu DLL — với người dùng nhìn giống hệt "app không mở được",
-    # mà đây là công cụ đem sang máy show nên không thể đòi cài thêm gì.
+    # v1.0.1 đã thử và phải rút lại. Nhúng CRT làm exe phồng từ 92 KB lên
+    # 349 KB và bảng import gần như trống (không còn gọi MSVCP140.dll). Với
+    # bộ quét heuristic thì đó chính là chân dung của một packer: file nhỏ,
+    # không chữ ký, import trống, lại sinh tiến trình con. Kết quả là
+    # Defender chặn NGAY LÚC TẢI — người dùng không lấy nổi file zip về, còn
+    # bản 92 KB link động thì tải bình thường.
     #
-    # Phải đặt TRƯỚC mọi add_library/add_executable thì mới có tác dụng.
-    # Biến này chỉ được đọc khi policy CMP0091 ở chế độ NEW — dòng
-    # `cmake_minimum_required(VERSION 3.20)` phía trên đã bật sẵn, đừng hạ
-    # số đó xuống dưới 3.15 kẻo cờ này lặng lẽ mất tác dụng.
-    # Giá phải trả: exe to thêm khoảng 200 KB. Đổi lại là chép đi đâu cũng chạy.
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    # Cách giữ được "không phải cài gì" mà không đánh đổi: link động như cũ,
+    # rồi chép mấy DLL runtime nằm cạnh exe (app-local deployment — Microsoft
+    # cho phép phát hành kèm). Xem khối add_custom_command bên dưới.
 else()
     add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 endif()
@@ -54,7 +53,10 @@ if(WIN32)
     # ca project se ton them nhieu phut va keo theo phu thuoc OpenGL khong dung toi.
     FetchContent_Declare(spout2
         GIT_REPOSITORY https://github.com/leadedge/Spout2.git
-        GIT_TAG        master
+        # GHIM tag cu the, dung de "master". Keo master thi moi lan CI chay
+        # lai ra mot ban khac nhau -> ma bam cua tdrec.exe khong on dinh, nguoi
+        # dung khong the doi chieu de biet file minh tai co dung khong.
+        GIT_TAG        2.007.017
         GIT_SHALLOW    TRUE
         SOURCE_SUBDIR  cmake-no-build
     )
@@ -98,6 +100,28 @@ if(WIN32)
     )
     target_link_libraries(tdrec PRIVATE tdrec_core spoutdx)
     target_compile_definitions(tdrec PRIVATE NOMINMAX)
+
+    # Chép VCRUNTIME140.dll / VCRUNTIME140_1.dll / MSVCP140.dll nằm cạnh exe.
+    # Windows tìm DLL ở thư mục chứa exe trước tiên, nên máy chưa cài VC++
+    # Redistributable vẫn chạy được — mà exe thì vẫn link động, giữ đúng hình
+    # dạng mà bộ quét virus coi là bình thường.
+    #
+    # SKIP=TRUE để module chỉ DÒ ra đường dẫn chứ không tự sinh luật install.
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+    include(InstallRequiredSystemLibraries)
+
+    if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+        foreach(dll ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS})
+            add_custom_command(TARGET tdrec POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "${dll}" "$<TARGET_FILE_DIR:tdrec>"
+                COMMENT "Chep runtime DLL canh tdrec.exe: ${dll}")
+        endforeach()
+    else()
+        message(WARNING
+            "Khong do duoc runtime DLL cua MSVC. tdrec.exe se doi may dich "
+            "da cai VC++ Redistributable.")
+    endif()
 else()
     # Ngoài Windows vẫn build tdrec, chỉ thiếu lớp Spout. Chạy được
     # `--record --mock` để kiểm chứng toàn bộ vòng lặp ghi.

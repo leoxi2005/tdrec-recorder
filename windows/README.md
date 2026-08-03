@@ -16,7 +16,15 @@ Ghi hình từ TouchDesigner ra video mà **không kéo tụt FPS của TD** và
 
 Nếu hiện bảng xanh *"Windows protected your PC"*: bấm **More info → Run anyway**. App chưa ký số nên Windows cảnh báo mọi lần đầu.
 
-**Không cần cài Visual C++ Redistributable** — runtime đã nhúng thẳng vào exe.
+**Không cần cài Visual C++ Redistributable** — mấy file `.dll` trong zip chính là runtime, cứ để chúng nằm cạnh `tdrec.exe` là được. **Đừng tách `tdrec.exe` ra khỏi thư mục** kẻo nó không tìm thấy DLL.
+
+> **Nếu trình duyệt chặn không cho tải file zip** ("virus detected"), tải bằng PowerShell:
+> ```powershell
+> cd ~\Downloads
+> Invoke-WebRequest -Uri "https://github.com/leoxi2005/tdrec-recorder/releases/latest/download/TDRec-Windows.zip" -OutFile TDRec-Windows.zip
+> Expand-Archive TDRec-Windows.zip -DestinationPath TDRec -Force
+> ```
+> Cách này đi thẳng, không qua bộ lọc của trình duyệt, và `Expand-Archive` cũng không dính bẫy Mark-of-the-Web.
 
 **Cần ffmpeg trong PATH** thì mới *ghi* được (mục [3]). Mục [1] và [2] không cần:
 ```

@@ -329,6 +329,29 @@ bool LaunchedFromExplorer() {
     return n <= 1;
 }
 
+// Xoá màn hình và dò ffmpeg bằng API Windows, KHÔNG dùng std::system().
+//
+// std::system("cls") và std::system("where ffmpeg") đều đẻ ra một cmd.exe con.
+// Bộ quét heuristic chấm điểm rất nặng hành vi "tiến trình lạ sinh shell", mà
+// app này vốn đã bị soi vì không có chữ ký số. Hai hàm dưới đây làm đúng việc
+// đó nhưng gọi thẳng Win32, không sinh process nào.
+void ClearScreen() {
+    const HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO info{};
+    if (!GetConsoleScreenBufferInfo(h, &info)) return;
+    const DWORD cells = static_cast<DWORD>(info.dwSize.X) * info.dwSize.Y;
+    const COORD home{0, 0};
+    DWORD n = 0;
+    FillConsoleOutputCharacterA(h, ' ', cells, home, &n);
+    FillConsoleOutputAttribute(h, info.wAttributes, cells, home, &n);
+    SetConsoleCursorPosition(h, home);
+}
+
+bool CoFfmpegTrongPath() {
+    char found[MAX_PATH] = {};
+    return SearchPathA(nullptr, "ffmpeg", ".exe", MAX_PATH, found, nullptr) != 0;
+}
+
 std::string ReadLine(const char* label, const std::string& fallback) {
     std::printf("%s", label);
     std::fflush(stdout);
@@ -386,7 +409,7 @@ void MenuProbe() {
 void MenuRecord() {
     std::printf("\n  -- Bat dau ghi ------------------------------------\n\n");
 
-    if (std::system("where ffmpeg >nul 2>nul") != 0) {
+    if (!CoFfmpegTrongPath()) {
         std::printf("  !! KHONG THAY ffmpeg trong PATH.\n\n");
         std::printf("  TDRec goi ffmpeg de encode, goi cai dat nay khong kem san no.\n");
         std::printf("  Cai bang mot trong hai cach:\n");
@@ -448,7 +471,7 @@ int RunMenu() {
         // ra đã tự thoát.
         g_stop = false;
 
-        std::system("cls");
+        ClearScreen();
         std::printf("\n");
         std::printf("   =====================================================\n");
         std::printf("     T D R e c   --  ghi Spout ra video, khong rot frame\n");

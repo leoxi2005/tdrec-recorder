@@ -78,22 +78,43 @@ jobs:
         # nen khong duoc de PowerShell coi do la loi.
         continue-on-error: true
 
-      - name: Kiem tra exe khong phu thuoc VC++ Redistributable
+      - name: Kiem tra exe van link dong CRT va co DLL di kem
         shell: pwsh
-        # Neu link dong CRT thi exe se doi VCRUNTIME140.dll / MSVCP140.dll,
-        # may chua cai gap hop thoai thieu DLL -- nguoi dung thay giong het
-        # "app khong mo duoc". Chan tu day thay vi de lo ra o may show.
+        # NGUOC voi v1.0.1: hoi do nhung CRT vao exe de khoi can VC++ Redist,
+        # nhung exe phong len 349 KB voi bang import trong -> Defender chan
+        # NGAY LUC TAI, nguoi dung khong lay noi file zip ve. Ban 92 KB link
+        # dong thi tai binh thuong.
+        #
+        # Nen bay gio phai chan chieu nguoc lai: exe BUOC PHAI con link dong,
+        # va cac DLL runtime phai nam canh no.
         run: |
+          $exe = ".\build\Release\tdrec.exe"
           $dumpbin = (Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio" -Recurse -Filter dumpbin.exe -ErrorAction SilentlyContinue |
                       Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1).FullName
-          if (-not $dumpbin) { Write-Host "Khong thay dumpbin, bo qua"; exit 0 }
-          $deps = & $dumpbin /dependents .\build\Release\tdrec.exe
-          $deps | Write-Host
-          if ($deps -match 'VCRUNTIME|MSVCP') {
-            Write-Error "tdrec.exe van link dong CRT -- CMAKE_MSVC_RUNTIME_LIBRARY khong an"
+          if ($dumpbin) {
+            $deps = & $dumpbin /dependents $exe
+            $deps | Write-Host
+            if ($deps -notmatch 'VCRUNTIME140') {
+              Write-Error "tdrec.exe dang nhung CRT -- se bi Defender chan luc tai. Xem CMakeLists."
+              exit 1
+            }
+            Write-Host "OK: tdrec.exe con link dong CRT"
+          }
+
+          $kb = [math]::Round((Get-Item $exe).Length / 1KB)
+          Write-Host "Kich thuoc tdrec.exe: $kb KB"
+          if ($kb -gt 220) {
+            Write-Error "tdrec.exe phong bat thuong ($kb KB) -- dau hieu CRT bi nhung lai"
             exit 1
           }
-          Write-Host "OK: tdrec.exe khong can VC++ Redistributable"
+
+          foreach ($d in @('VCRUNTIME140.dll','MSVCP140.dll')) {
+            if (-not (Test-Path ".\build\Release\$d")) {
+              Write-Error "Thieu $d canh exe -- may chua cai VC++ Redist se khong chay duoc"
+              exit 1
+            }
+          }
+          Write-Host "OK: DLL runtime da nam canh exe"
 
       - name: Kiem tra exe vao duoc menu khi bam dup
         shell: pwsh
@@ -116,6 +137,7 @@ jobs:
           mkdir dist
           copy build\Release\tdrec.exe dist\
           copy build\Release\tdrec_core_test.exe dist\
+          copy build\Release\*.dll dist\
           copy windows\README.md dist\
           copy macos\td\tdrec_watermark.frag dist\
 
