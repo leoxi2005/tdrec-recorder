@@ -92,8 +92,11 @@ jobs:
           $dumpbin = (Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio" -Recurse -Filter dumpbin.exe -ErrorAction SilentlyContinue |
                       Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1).FullName
           if ($dumpbin) {
-            $deps = & $dumpbin /dependents $exe
-            $deps | Write-Host
+            # Out-String BAT BUOC: -match/-notmatch tren MANG la toan tu LOC,
+            # tra ve mang cac dong khop chu khong phai true/false. Mang khong
+            # rong luon tinh la dung -> if() bao loi nguoc hoan toan.
+            $deps = (& $dumpbin /dependents $exe) | Out-String
+            Write-Host $deps
             if ($deps -notmatch 'VCRUNTIME140') {
               Write-Error "tdrec.exe dang nhung CRT -- se bi Defender chan luc tai. Xem CMakeLists."
               exit 1
